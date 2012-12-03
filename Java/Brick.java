@@ -1,9 +1,9 @@
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Rectangle;
 
 @SuppressWarnings("serial")
 public class Brick extends Rectangle{
  Color brickColor;
- double MaxHP;
  double HP;
  int R;
  int G;
@@ -22,12 +22,8 @@ public class Brick extends Rectangle{
   this(0,0,10,10);
  }
 
- public void setHP(int a){
-	 this.MaxHP=a;
-	 this.HP=a;
- }
  public void Hit(){
-	 this.brickColor=new Color(R,G,B,(int)(100-HP));
+	 this.brickColor=new Color(R,G,B,(int)(HP)+20);
  }
  public void setColor(int x, int y, int z){
 	 this.R=x;
