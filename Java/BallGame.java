@@ -1,33 +1,49 @@
 //Jorge Munoz
 
-import java.util.*;
-import java.awt.*;
-import java.awt.geom.Ellipse2D;
-import java.awt.event.*;
-import javax.imageio.ImageIO;
-import javax.swing.*;
-import java.io.*;
-import java.lang.Math;
-import java.lang.Double;
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.GridLayout;
+import java.awt.Image;
+import java.awt.Rectangle;
+import java.awt.Shape;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
+import java.awt.geom.Ellipse2D;
+import java.io.IOException;
+import java.net.URL;
+import java.text.DecimalFormat;
+import java.util.TimerTask;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 
 @SuppressWarnings("serial")
 public class BallGame extends JPanel{
 
-public Rectangle screen, bounds;// brickbounds; // The screen area and bound1 	ary.
+public Rectangle screen, bounds;// brickbounds; // The screen area and boundary.
 public JFrame frame; // A JFrame to put the graphics into.
 public GameTimerTask gameTask; // The TimerTask that runs the game.
 public GameBall ball; // The game ball, a subclass of Rectangle.
 private Brick brick; // A brick for the ball to interact with.
 private Brick brick2;
+private Brick brick3;
 private Brick winbrick; //The winning condition
 static double g=9.81; //Gravity constant
 static final double dt=0.04; //time step
 static int xother=-1000;
 static int yother=-1000;
 static int Stage=1;
+static String time;
 static Toolkit toolkit =  Toolkit.getDefaultToolkit ();
 static Dimension dim = toolkit.getScreenSize();
 static final double ke=8.99E9;
@@ -41,7 +57,7 @@ String xVelstr; //JPanel reads in strings, and these are the temporary variable 
 String yVelstr;
 boolean mouseDown;
 int gamecounter=0; //Used to trigger winning/losing conditions
-int MaxTime=30; //number of seconds to allow simulation to run
+double MaxTime=30.0; //number of seconds to allow simulation to run
 static double[] E = new double[2]; //Electric field
 static double B; //Magnetic field constant
 boolean winningCond=false;
@@ -53,27 +69,28 @@ double[] Bforce= new double[3];
 // Create a constructor method:
   public BallGame(){
     super();
-    screen = new Rectangle(0, 0, dim.width,dim.height-50);
-    bounds = new Rectangle(0, 0, dim.width,dim.height-50); // Give some temporary values.
+    screen = new Rectangle(0, 0, dim.width,dim.height-dim.height/20);
+    gamecounter=0;
+    bounds = new Rectangle(0, 0, dim.width,dim.height-dim.height/20); // Give some temporary values.
     frame = new JFrame("Stage "+Stage);
     gameTask = new GameTimerTask();
     brick = new Brick();
     brick2= new Brick();
+    brick3= new Brick();
     winbrick= new Brick();
     winbrick.setColor(200,0,0);
-    //brickbounds = new Rectangle(0,0,10,10);
     ball = new GameBall();
     while(InitialCond!=1); //Infinite loop until the user selects the conditions from JPanel.
     xVel= Double.parseDouble(xVelstr); //convert to a double and then make sure the velocity is under the max limit.
-    if(xVel>15)xVel=15;
-    if(xVel<-15)xVel=-15;
+    if(xVel>0.04*screen.width)xVel=0.04*screen.width;
+    if(xVel<-0.04*screen.width)xVel=-0.04*screen.width;
     yVel= -Double.parseDouble(yVelstr);
-    if(yVel>15)yVel=15;
-    if(yVel<-15)yVel=-15;
+    if(yVel>0.04*screen.width)yVel=0.04*screen.width;
+    if(yVel<-0.04*screen.width)yVel=-0.04*screen.width;
     
     g=9.81;
-    E[0]=3E4; //could prompt user for E direction
-    E[1]=3E4;
+    E[0]=6E4; //could prompt user for E direction
+    E[1]=6E4;
     B = -5E3; //could prompt user for B direction (+ in or - out).
 }
 
@@ -86,36 +103,39 @@ double[] Bforce= new double[3];
     		ball.move();
     		frame.repaint();
     	}
-    	if(losingCond==true && gamecounter==0){// YOU LOSE
-    		final JFrame framex = new JFrame("Level Failed");
-    		framex.setSize(dim.width,dim.height-50);
+    	else if(losingCond==true && gamecounter==0){// YOU LOSE
+    		//final JFrame framex = new JFrame("Level Failed");
+    		frame.setSize(dim.width,dim.height-dim.height/20);
+    		frame.getContentPane().removeAll();
+    		//frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     		JLabel Game= new JLabel("Game", JLabel.CENTER);
-    		Game.setFont(new Font("Serif", Font.BOLD, 240));
+    		Game.setFont(new Font("Serif", Font.BOLD, (int)(dim.width/6)));
     		Game.setForeground(Color.red);
     		Game.setSize(screen.width, (int)(3*screen.height/8));
     		Game.setLocation(0,0);
     		JLabel Over= new JLabel("Over", JLabel.CENTER);
-    		Over.setFont(new Font("Serif", Font.BOLD, 240));    		
+    		Over.setFont(new Font("Serif", Font.BOLD, (int)(dim.width/6)));    		
     		Over.setForeground(Color.red);
     		Over.setSize(screen.width, (int)(3*screen.height/8));
-    		Over.setLocation(0,(int)(3*screen.height/8)-50);
-    		Container con = framex.getContentPane();
+    		Over.setLocation(0,(int)(3*screen.height/8)-screen.height/20);
+    		Container con = frame.getContentPane();
     		con.setBackground(Color.black);
     	    JButton Restart= new JButton("Restart");
     	    Restart.setSize(screen.width, (int)(screen.height/8));
-    	    Restart.setLocation(0, (int)(3*screen.height/4)-50);
-    	    JButton EndGame= new JButton("EndGame");
+    	    Restart.setLocation(0, (int)(3*screen.height/4)-screen.height/20);
+    	    JButton EndGame= new JButton("End Game");
     	    EndGame.setSize((int)(screen.width), (int)(screen.height/8));
-    	    EndGame.setLocation(0,(int)(7*screen.height/8)-50);
+    	    EndGame.setLocation(0,(int)(7*screen.height/8)-screen.height/20);
     	    
     	    Restart.addActionListener(new ActionListener() {
     	  	  
     	        public void actionPerformed(ActionEvent e)
     	        {
     	            restart=true;
-    	            Continue=true;
+    	            frame.getContentPane().removeAll();
     	     		frame.setVisible(false);
-    	     		framex.setVisible(false);
+    	            Continue=true;
+    	     		//framex.setVisible(false);
     	        }
     	 });
     	    EndGame.addActionListener(new ActionListener() {
@@ -125,45 +145,48 @@ double[] Bforce= new double[3];
     	     		System.exit(0);
     	        }
     	 });
-    		framex.add(Restart);
-    		framex.add(EndGame);
-    		framex.add(Game);
-    		framex.add(Over);
-    		framex.setVisible(true);
+    		frame.add(Restart);
+    		frame.add(EndGame);
+    		frame.add(Game);
+    		frame.add(Over);
+    		frame.setVisible(true);
      		while(!Continue);
      		//Continue=false;
     		gamecounter++;
     	}
-    	if(winningCond==true && gamecounter==0){// YOU WIN
-    		final JFrame framex = new JFrame("Level Complete");
-    		framex.setSize(dim.width,dim.height-50);
+    	else if(winningCond==true && gamecounter==0){// YOU WIN
+    		//final JFrame framex = new JFrame("Level Complete");
+    		frame.setSize(dim.width,dim.height-50);
+    		frame.getContentPane().removeAll();
+    		//frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     		JLabel Game= new JLabel("Stage "+Stage, JLabel.CENTER);
-    		Game.setFont(new Font("Serif", Font.BOLD, 240));
+    		Game.setFont(new Font("Serif", Font.BOLD, (int)(dim.width/6)));
     		Game.setSize(screen.width, (int)(3*screen.height/8));
     		Game.setLocation(0,0);
     		Game.setForeground(Color.blue);
     		JLabel Over= new JLabel("Complete", JLabel.CENTER);
-    		Over.setFont(new Font("Serif", Font.BOLD, 240));
+    		Over.setFont(new Font("Serif", Font.BOLD, (int)(dim.width/6)));
     		Over.setForeground(Color.blue);
     		Over.setSize(screen.width, (int)(3*screen.height/8));
     		Over.setLocation(0,(int)(3*screen.height/8));
     	    JButton Restart= new JButton("Restart");
     	    Restart.setSize(screen.width, (int)(screen.height/8));
-    	    Restart.setLocation(0, (int)(3*screen.height/4)-50);
-    	    JButton EndGame= new JButton("EndGame");
+    	    Restart.setLocation(0, (int)(3*screen.height/4)-screen.height/20);
+    	    JButton EndGame= new JButton("End Game");
     	    EndGame.setSize((int)(screen.width/2), (int)(screen.height/8));
-    	    EndGame.setLocation(0,(int)(7*screen.height/8)-50);
+    	    EndGame.setLocation(0,(int)(7*screen.height/8)-screen.height/20);
     	    JButton NextLevel= new JButton("Next Level");
     	    NextLevel.setSize((int)(screen.width/2), (int)(screen.height/8));
-    	    NextLevel.setLocation((int)(screen.width/2),(int)(7*screen.height/8)-50);
+    	    NextLevel.setLocation((int)(screen.width/2),(int)(7*screen.height/8)-screen.height/20);
     	    Restart.addActionListener(new ActionListener() {
     	  	  
     	        public void actionPerformed(ActionEvent e)
     	        {
     	            restart=true;
     	            Continue=true;
+    	            frame.getContentPane().removeAll();
     	     		frame.setVisible(false);
-    	     		framex.setVisible(false);
+    	     		//framex.setVisible(false);
     	        }
     	 });
     	    EndGame.addActionListener(new ActionListener() {
@@ -177,19 +200,20 @@ double[] Bforce= new double[3];
       	  	  
     	        public void actionPerformed(ActionEvent e)
     	        {
-    	        	Stage=2;
+    	        	Stage++;
     	            restart=true;
     	            Continue=true;
+    	            frame.getContentPane().removeAll();
     	     		frame.setVisible(false);
-    	     		framex.setVisible(false);
+    	     		//framex.setVisible(false);
     	        }
     	 });
-    		framex.add(Restart);
-    		framex.add(NextLevel);
-    		framex.add(EndGame);
-    		framex.add(Game);
-    		framex.add(Over);
-    		framex.setVisible(true); 
+    		frame.add(Restart);
+    		frame.add(NextLevel);
+    		frame.add(EndGame);
+    		frame.add(Game);
+    		frame.add(Over);
+    		frame.setVisible(true); 
     		gamecounter++;
      		while(!Continue);
      		//Continue=false;
@@ -204,44 +228,52 @@ double[] Bforce= new double[3];
 	double qother;
 	long date1; //initialization of the ball
 	long date2; //end time of the ball
-	int time; //the time left to complete the objective
     Color ballColor; // The color of the ball
 
     public GameBall(){
       super(100, 20, 15, 15); // Initial position and size of the ball
       Initialize();
       ballColor=new Color(0, 0, 128); //Blue ball
-      //x=300;
-      //y=300;
     }
     
 	private void Initialize() { 
-		final JFrame Instructions = new JFrame("Field Type");
- 	    Instructions.setLayout(new GridLayout(0, 1));
- 	    
+		//final JFrame Instructions = new JFrame("Field Type");
+		if(Stage==1){
+		frame.setLayout(new GridLayout(0, 1));
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
  	    JButton Continue = new JButton("Press to select intital conditions");
  	    
  	   Continue.addActionListener(new ActionListener() {  
            public void actionPerformed(ActionEvent e)
            {
-        	   Instructions.setVisible(false);
+        	   //Instructions.setVisible(false);
+        	   frame.setVisible(false);
+        	   frame.getContentPane().removeAll();
         	   Fieldtype();
            }
     });
- 	    Instructions.setFont(new Font("Serif", Font.BOLD, 20));
- 	    Instructions.add(new JLabel("You have only 30 seconds to reach the objective after the ball has been launched."), JLabel.CENTER);
- 	    Instructions.add(new JLabel("An image of the next stage is shown in the background."), JLabel.CENTER);
- 	    Instructions.add(new JLabel("You will get to choose the particle type, field type, and the initial velocities of the particle."), JLabel.CENTER);
- 	    Instructions.add(new JLabel("The objective of the game is to get the particle into the RED ZONE."), JLabel.CENTER);
- 	    
- 	    Instructions.add(Continue);
-  	    Instructions.setSize(screen.width, screen.height/2);
-  	    Instructions.setVisible(true);
+ 	    frame.setFont(new Font("Serif", Font.BOLD, 20));
+	    frame.add(new JLabel("You have only 30 seconds to reach the objective after the ball has been launched."), JLabel.CENTER);
+	    frame.add(new JLabel("An image of the next stage is shown in the background."), JLabel.CENTER);
+	    frame.add(new JLabel("You will get to choose the particle type, field type, and the initial velocities of the particle."), JLabel.CENTER);
+	    frame.add(new JLabel("Clicking the mouse creates a positive point charge to simulate the Coulomb force."));
+	    frame.add(new JLabel("By destroying the blocks, ADDITION OF OBJECTIVE"));
+	    frame.add(new JLabel("The objective of the game is to get the particle into the RED ZONE."), JLabel.CENTER);
+	    
+	    frame.add(Continue);
+	    frame.setSize(screen.width, screen.height/2);
+	    frame.setVisible(true);
+		}
+		else{
+			frame.setLayout(new GridLayout(0, 1));
+			Fieldtype();
+		}
+ 	   
  	}
 	
 	public void Fieldtype(){ //Prompt the user to select a field type
-    	    final JFrame frame = new JFrame("Field Type");
-    	    frame.setLayout(new GridLayout(0, 1));
+    	    //final JFrame frame = new JFrame("Field Type");
+			frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     	    JButton Gravity= new JButton("Gravity- The force that we experience on a day to day basis, pulls things down and keeps you from flying off of the surface of the Earth.");
     	    JButton Efield = new JButton("Electric Field- Charged particles experience a force when they are in an electric field. Electrons move against the E-field and protons move with the E-field.");
     	    JButton Bfield= new JButton("Magnetic Field- Charged particles experience a force when MOVING in a magnetic field, for simplicity in this 2D game, we will only consider the magnetic fields pointing in and out of the screen.");
@@ -256,8 +288,9 @@ double[] Bforce= new double[3];
 	            {
 	                //Execute when button is pressed
 	            	field =1;
-	                frame.removeAll();
+	                frame.getContentPane().removeAll();
 	                frame.setVisible(false);
+	                frame.getContentPane().removeAll();
 	                Particletype();
 	            }
 	     });
@@ -267,8 +300,9 @@ double[] Bforce= new double[3];
 	            {
 	                //Execute when button is pressed
 	            	field =2;
-	                frame.removeAll();
+	                frame.getContentPane().removeAll();
 	                frame.setVisible(false);
+	                frame.getContentPane().removeAll();
 	                Particletype();
 	            }
 	     });
@@ -276,10 +310,11 @@ double[] Bforce= new double[3];
   	    	  
 	            public void actionPerformed(ActionEvent e)
 	            {
-	                //Execute when button is presse
+	                //Execute when button is pressed
 	            	field =3;
-	                frame.removeAll();
+	                frame.getContentPane().removeAll();
 	                frame.setVisible(false);
+	                frame.getContentPane().removeAll();
 	                Particletype();
 	            }
 	     });
@@ -287,10 +322,11 @@ double[] Bforce= new double[3];
     	    	  
 	            public void actionPerformed(ActionEvent e)
 	            {
-	                //Execute when button is presse
+	                //Execute when button is pressed
 	            	field =12;
-	                frame.removeAll();
+	                frame.getContentPane().removeAll();
 	                frame.setVisible(false);
+	                frame.getContentPane().removeAll();
 	                Particletype();
 	            }
 	     });
@@ -300,8 +336,9 @@ double[] Bforce= new double[3];
 	            {
 	                //Execute when button is pressed
 	            	field =13;
-	                frame.removeAll();
+	                frame.getContentPane().removeAll();
 	                frame.setVisible(false);
+	                frame.getContentPane().removeAll();
 	                Particletype();
 	            }
 	     });
@@ -311,8 +348,9 @@ double[] Bforce= new double[3];
 	            {
 	                //Execute when button is pressed
 	            	field =23;
-	                frame.removeAll();
+	                frame.getContentPane().removeAll();
 	                frame.setVisible(false);
+	                frame.getContentPane().removeAll();
 	                Particletype();
 	            }
 	     });
@@ -321,8 +359,9 @@ double[] Bforce= new double[3];
 	            public void actionPerformed(ActionEvent e)
 	            {
 	            	field =123;
-	                frame.removeAll();
+	                frame.getContentPane().removeAll();
 	                frame.setVisible(false);
+	                frame.getContentPane().removeAll();
 	                Particletype();
 	            }
 	     });
@@ -339,9 +378,9 @@ double[] Bforce= new double[3];
     	    frame.setVisible(true);
     	  }
           
-	public void Particletype(){ //Prompt the user to selct a particle type
-		final JFrame frames = new JFrame("Particle Type");
-	    frames.setLayout(new GridLayout(0, 1));
+	public void Particletype(){ //Prompt the user to select a particle type
+		//final JFrame frames = new JFrame("Particle Type");
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	    JButton Normal= new JButton("No charge- The particle will have no charge and will not be affected by electric fields or magnetic fields.");
 	    JButton Electron = new JButton("Pseudo Electron- Electrons have a NEGATIVE charge of about 1.6*10^-19 coulombs.");
 	    JButton Proton= new JButton("Psuedo Proton- Protons have a POSITIVE charge of about 1.6*10^-19 coulombs.");
@@ -350,8 +389,8 @@ double[] Bforce= new double[3];
             {
                 //Execute when button is pressed
             	q=0;
-                frames.removeAll();
-                frames.setVisible(false);
+                frame.getContentPane().removeAll();
+                frame.setVisible(false);
                 InitVel();
             }
      });
@@ -360,8 +399,8 @@ double[] Bforce= new double[3];
             {
                 //Execute when button is pressed
             	q=-1.6E-4;
-                frames.removeAll();
-                frames.setVisible(false);
+                frame.getContentPane().removeAll();
+                frame.setVisible(false);
                 InitVel();
             }
      });
@@ -370,26 +409,26 @@ double[] Bforce= new double[3];
             {
                 //Execute when button is pressed
             	q=1.6E-4;
-                frames.removeAll();
-                frames.setVisible(false);
+                frame.getContentPane().removeAll();
+                frame.setVisible(false);
                 InitVel();
             }
      });
-	    //frames.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-	    frames.add(new JLabel("Select your particle type!", JLabel.CENTER));
-	    frames.add(Normal);
-	    frames.add(Electron);
-	    frames.add(Proton);
-	    frames.setSize(screen.width, screen.height/2);
-	    frames.setVisible(true);
+	    //frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+	    frame.add(new JLabel("Select your particle type!", JLabel.CENTER));
+	    frame.add(Normal);
+	    frame.add(Electron);
+	    frame.add(Proton);
+	    frame.setSize(screen.width, screen.height/2);
+	    frame.setVisible(true);
 	    
 	    //while(InitialCond==1);
 	}
 	
 	public void InitVel(){ //Prompt the user for initial velocities.
-		  xVelstr = JOptionPane.showInputDialog("Initial x velocity (Max = absolute value of 15): ");
+		  xVelstr = JOptionPane.showInputDialog("Initial x velocity (Max = absolute value of "+(int)(0.04*screen.width)+": ");
 		  if(xVelstr != null){
-		   yVelstr = JOptionPane.showInputDialog("Initial y velocity (Max= absolute value of 15): ");
+		   yVelstr = JOptionPane.showInputDialog("Initial y velocity (Max= absolute value of "+(int)(0.04*screen.width)+": ");
 		  	if(yVelstr !=null){
 		  		InitialCond=1;
 		  	    java.util.Date startime= new java.util.Date();
@@ -417,9 +456,13 @@ double[] Bforce= new double[3];
     	if(field==23)g=0;
     	else ;
     	
-    	Bforce=	cross(vx,vy,0,0,0,B);
+    	if(((x-xother)*(x-xother)+(y-yother)*(y-yother))<1){
+    		return q*E[0]+Bforce[0]*q+ke*q*qother*(x-xother)/1;	
+    	}
+    	else{
+    		Bforce=	cross(vx,vy,0,0,0,B);
     	return q*E[0]+Bforce[0]*q+ke*q*qother*(x-xother)/((x-xother)*(x-xother)+(y-yother)*(y-yother));	
-    
+    	}
     }
     
     public double Forcey(double x, double y, double vx, double vy){// ask for position for future implementations
@@ -438,21 +481,14 @@ double[] Bforce= new double[3];
     	}
     	if(field==23)g=0;
     	else ;
-    	Bforce=	cross(vx,vy,0,0,0,B);
-    	return q*E[1]+Bforce[1]*q+g+ke*q*qother*(y-yother)/((x-xother)*(x-xother)+(y-yother)*(y-yother));
-    	
-    }
-/*    	    Efield.addActionListener(new ActionListener() {
-  	    	  
-	            public void actionPerformed(ActionEvent e)
-	            {
-	                //Execute when button is pressed
-	            	field =2;
-	                frame.removeAll();
-	                frame.setVisible(false);
-	                Particletype();
-	            }
-	     });*/    
+    	if(((x-xother)*(x-xother)+(y-yother)*(y-yother))<1){
+    		return q*E[0]+Bforce[0]*q+ke*q*qother*(y-yother)/1;	
+    	}
+    	else{
+    		Bforce=	cross(vx,vy,0,0,0,B);
+    		return q*E[1]+Bforce[1]*q+g+ke*q*qother*(y-yother)/((x-xother)*(x-xother)+(y-yother)*(y-yother));
+    	}
+    }  
     public void move(){
     	
     	//System.out.println(Math.sqrt(xVel*xVel+yVel*yVel));
@@ -477,17 +513,31 @@ double[] Bforce= new double[3];
 			@Override
 			public void mousePressed(MouseEvent e) {
 				qother=1.6E-4;
-				//System.out.println("Pressed");
 				xother=e.getX();
 				yother=e.getY();
 			}
+
+
 
 			@Override
 			public void mouseReleased(MouseEvent e) {
 				//System.out.println("Released");
 				qother=0;
-				xother=-1000;
+				xother=-1000;// place the image far away when not pressed.
 				yother=-1000;
+			}
+      });
+      frame.addMouseMotionListener(new MouseMotionListener(){
+    	  	@Override
+		    public void mouseDragged(MouseEvent e) {
+				qother=1.6E-4;
+				xother=e.getX();
+				yother=e.getY();
+		     }
+
+			@Override
+			public void mouseMoved(MouseEvent arg0) {
+				// Nothing
 			}
       });
       //Calculate new yVel (influenced by gravity)
@@ -539,13 +589,14 @@ double[] Bforce= new double[3];
       yVel=yVel+Forcey(x,y,xVel,yVel)*dt; // F/m*dt
       xVel=xVel+Forcex(x,y,xVel,temp)*dt;
       // Move the ball according to the game rules.
-      x+=xVel; // Move horizontally.
-      y+=yVel; // Move vertically.
+      x+=xVel/8; // Move horizontally.
+      y+=yVel/8; // Move vertically.
       // Detect edges and bounce if necessary.
       // Check for intersection with Brick, the range has to be adjusted later to be more accurate
       BoundaryCollision();
       if(brick.HP>0) Collision(brick);
       if(brick2.HP>0) Collision(brick2);
+      if(brick3.HP>0) Collision(brick3);
       /*
        * Here we would insert the multiple bricks that are being used in the stage.
        * Collision(brick2);
@@ -560,7 +611,7 @@ double[] Bforce= new double[3];
       if(date2-date1>=MaxTime*1000){
     	 losingCond=true;
       }
-      time= MaxTime-(int)((date2-date1)/1000);
+      time= new DecimalFormat("#.##").format(MaxTime-((date2-date1)/1000.0));
     }
     
     public void Goal(){//if the ball is in the winning position
@@ -592,7 +643,9 @@ double[] Bforce= new double[3];
           }
           
         if (x <= 0) { // collision with the left wall
-        	xVel = -xVel; x = 0; 
+        	xVel = -xVel; x = 1;
+        	if(xVel<2)xVel=2;
+        	
             if(0.5*Math.sqrt(xVel*xVel+yVel*yVel)>MaxEnergy){
             	EnergyScale=MaxEnergy/Math.sqrt(xVel*xVel+yVel*yVel);
             	xVel=xVel*EnergyScale;
@@ -600,7 +653,7 @@ double[] Bforce= new double[3];
             }
         }
         if (y <= 0) { //collision with the top wall
-        	yVel = -yVel; y = 0; 
+        	yVel = -yVel; y = 1; 
             if(0.5*Math.sqrt(xVel*xVel+yVel*yVel)>MaxEnergy){
             	EnergyScale=MaxEnergy/Math.sqrt(xVel*xVel+yVel*yVel);
             	xVel=xVel*EnergyScale;
@@ -611,7 +664,7 @@ double[] Bforce= new double[3];
     
     public void Collision(Brick brick){//Collision with the specified brick
         //Collision with bottom wall
-        if((brick.y+brick.height-ball.height<y && y<brick.y+brick.height)&&(x+ball.width<brick.x+brick.width && x+ball.width>brick.x)){//bottom
+        if((brick.y+brick.height-ball.height<y && y<brick.y+brick.height)&&(x+0.5*ball.width<brick.x+brick.width && x+0.5*ball.width>brick.x)){//bottom
     		if(x-brick.x>0){// move down or right 
       			  //If delta x is greater than delta y, do nothing
       			  if(((brick.y+brick.height)-y>Math.min((brick.x+brick.width-x),ball.width))){}
@@ -702,7 +755,7 @@ double[] Bforce= new double[3];
           }
         }
       //Collision with top wall
-        if((brick.y<y+ball.height && y+ball.height<brick.y+ball.height)&&(x<brick.x+brick.width && x+ball.width>brick.x)){//top
+        if((brick.y<y+ball.height && y+ball.height<brick.y+2*ball.height)&&(x<brick.x+brick.width && x+0.5*ball.width>brick.x)){//top
         	if(x-brick.x>0){// move up or right 
   			  //If delta x is greater than delta y, do nothing
   			  if(((y-brick.y)>Math.min((brick.x+brick.width-x),ball.width))){}
@@ -748,20 +801,14 @@ double[] Bforce= new double[3];
     // the ball draws itself in the graphics context given.
       Shape ball = new Ellipse2D.Float(x, y, width, height);
       Graphics2D ga = (Graphics2D)g;
-      //Color gcColor = g.getColor();
+	    URL imgURL = BallGame.class.getResource("/img/PointEfield.jpg");
+	    Image img = Toolkit.getDefaultToolkit().getImage(imgURL);
+    	ga.drawImage(img,xother-20,yother-20,null);
       ga.setPaint(ballColor);
       ga.draw(ball);// Draw the ball.
       ga.fill(ball);// Draw the ball.
-      ga.setFont(new Font("Serif", Font.BOLD, 20));
-      ga.drawString(Integer.toString(time), screen.width-40, 20);
-  	Image backgroundImage =null;
-	String Imagepath= "C:\\Users\\Jorge Munoz\\workspace\\BallGame\\src\\PointEfield.jpg";
-	try {
-	    backgroundImage = ImageIO.read(new File(Imagepath));
-	} catch (IOException e) {
-	    e.printStackTrace();
-	}
-	ga.drawImage(backgroundImage,xother-38,yother-50,null);
+      ga.setFont(new Font("Serif", Font.BOLD, screen.height/40));
+      ga.drawString(time, screen.width-screen.width/20, screen.height/40);
     } 
   } // end of class GameBall
 
@@ -772,34 +819,19 @@ double[] Bforce= new double[3];
 	// Clear the drawing area.
 	g.clearRect(screen.x, screen.y, screen.width, screen.height);
 	if(field==1){//Set background to gravity
-	   Image backgroundImage =null;
-	   String Imagepath= "C:\\Users\\Jorge Munoz\\workspace\\BallGame\\src\\GravityS.jpg";
-	   try {
-	       backgroundImage = ImageIO.read(new File(Imagepath));
-	   } catch (IOException e) {
-	       e.printStackTrace();
-	   }
-	   g.drawImage(backgroundImage,screen.width-300,20,null);
+	    URL imgURL = BallGame.class.getResource("/img/GravityS.jpg");
+	    Image img = Toolkit.getDefaultToolkit().getImage(imgURL);
+	    g.drawImage(img,screen.width-screen.width/5,screen.height/40,null);
 	}
 	if(field==2){//Set Background to Efield
-		   Image backgroundImage =null;
-		   String Imagepath= "C:\\Users\\Jorge Munoz\\workspace\\BallGame\\src\\EfieldS.jpg";
-		   try {
-		       backgroundImage = ImageIO.read(new File(Imagepath));
-		   } catch (IOException e) {
-		       e.printStackTrace();
-		   }
-		   g.drawImage(backgroundImage,screen.width-250,20,null);
+	    URL imgURL = BallGame.class.getResource("/img/EFieldS.jpg");
+	    Image img = Toolkit.getDefaultToolkit().getImage(imgURL);
+		g.drawImage(img,screen.width-screen.width/5,screen.height/40,null);
 	}
 	if(field==3){//Set background to Bfield
-		   Image backgroundImage =null;
-		   String Imagepath= "C:\\Users\\Jorge Munoz\\workspace\\BallGame\\src\\BfieldS.jpg";
-		   try {
-		       backgroundImage = ImageIO.read(new File(Imagepath));
-		   } catch (IOException e) {
-		       e.printStackTrace();
-		   }
-		   g.drawImage(backgroundImage,screen.width-230,20,null);
+	    URL imgURL = BallGame.class.getResource("/img/BFieldS.jpg");
+	    Image img = Toolkit.getDefaultToolkit().getImage(imgURL);
+		g.drawImage(img,screen.width-screen.width/5,screen.height/40,null);
 	}
 
     // Draw the brick.
@@ -807,31 +839,81 @@ double[] Bforce= new double[3];
     if(brick.HP>0) g.fillRect(brick.x, brick.y, brick.width, brick.height);
     g.setColor(brick2.getColor());
     if(brick2.HP>0) g.fillRect(brick2.x, brick2.y,brick2.width,brick2.height);
+    g.setColor(brick3.getColor());
+    if(brick3.HP>0) g.fillRect(brick3.x, brick3.y,brick3.width,brick3.height);
     g.setColor(winbrick.getColor());
     g.fillRect(winbrick.x, winbrick.y, winbrick.width, winbrick.height);
     // Draw the ball
     ball.draw(g);
   }
 
-  public static void main(String arg[]){
+  public static void main(String arg[]) throws IOException{
+	  int edge;
 	  while(true){
 	  if(Stage==1){
 			Continue=false;
 			//SET UP STAGE 1************************
 			//**************************************
 		    java.util.Timer gameTimer = new java.util.Timer();  // Create a Timer object
-		    JFrame preview = new JFrame("Stage1 Preview");
+		    URL imgURL = BallGame.class.getResource("/img/Stage1.jpg");
+		    Image img = Toolkit.getDefaultToolkit().getImage(imgURL);
+		    JFrame preview = new JFrame("Stage 1 Preview");
 		    preview.setSize(1000,600);
-		    Image backgroundImage =null;
-		    String Imagepath= "C:\\Users\\Jorge Munoz\\workspace\\BallGame\\src\\Stage1.jpg";
-		    try {
-		        backgroundImage = ImageIO.read(new File(Imagepath));
-		    } catch (IOException e) {
-		        e.printStackTrace();
-		    }
+		    ImagePanel previews = new ImagePanel(img);
+		    preview.getContentPane().add(previews);
+		    preview.setVisible(true);    
+		    BallGame panel = new BallGame();
+		    preview.setVisible(false);
+		    panel.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		    panel.frame.setSize(panel.screen.width, panel.screen.height);
+		    edge=panel.screen.height/20;
 
-		    // Initializing panel with the our image
-		    ImagePanel previews = new ImagePanel(backgroundImage);
+		    panel.frame.setContentPane(panel); 
+		    panel.frame.setVisible(true);
+		    
+		    // Set up the brick.
+		    panel.brick.x = panel.screen.width/4;
+		    panel.brick.setColor(0,0,200);
+		    panel.brick.y = panel.screen.height/4;
+		    panel.brick.width = panel.screen.width/2;//Change size of brick
+		    panel.brick.height = panel.screen.height/8;//Change size of brick
+		    panel.brick.HP=100;
+		    
+		    panel.winbrick.x=panel.screen.width-panel.screen.width/20;
+		    panel.winbrick.y=panel.screen.height-panel.screen.height/20-edge;
+		    panel.winbrick.width=panel.screen.height/20;
+		    panel.winbrick.height=panel.screen.height/20;
+		    
+		    // Set up the brick.
+		    panel.brick2.setColor(0,0,200);
+		    panel.brick2.x = panel.screen.width/3;    
+		    panel.brick2.y = panel.screen.height/4;
+		    panel.brick2.width = panel.screen.width/8;//Change size of brick
+		    panel.brick2.height = panel.screen.height/2;//Change size of brick
+		    panel.brick2.HP=100;
+
+		    //Empty bricks
+		    panel.brick3.HP=0;
+		    
+		    // Set up a timer to do the gameTask regularly.
+		    gameTimer.schedule(panel.gameTask, 0, 20);
+			//END OF STAGE 1************************
+			//***************************************/
+			Continue=false;
+			//SET UP STAGE 1************************
+			//*************************************
+		  }
+	    while(!Continue);
+	  if(Stage==2){
+			Continue=false;
+			//SET UP STAGE 2************************
+			//**************************************
+		    java.util.Timer gameTimer = new java.util.Timer();  // Create a Timer object
+		    URL imgURL = BallGame.class.getResource("/img/Stage2.jpg");
+		    Image img = Toolkit.getDefaultToolkit().getImage(imgURL);
+		    JFrame preview = new JFrame("Stage 2 Preview");
+		    preview.setSize(1000,600);
+		    ImagePanel previews = new ImagePanel(img);
 
 		    preview.getContentPane().add(previews);
 		    preview.setVisible(true);    
@@ -842,63 +924,7 @@ double[] Bforce= new double[3];
 
 		    panel.frame.setContentPane(panel); 
 		    panel.frame.setVisible(true);
-		    
-		    // Set up the brick.
-		    panel.brick.x = panel.screen.width/4;
-		    //panel.brick.x =0;
-		    panel.brick.setColor(0,0,200);
-		    panel.brick.y = panel.screen.height/4;
-		    panel.brick.width = panel.screen.width/2;//Change size of brick
-		    panel.brick.height = panel.screen.height/8;//Change size of brick
-		    panel.brick.HP=30;
-		    
-		    panel.winbrick.x=panel.screen.width-60;
-		    panel.winbrick.y=panel.screen.height-80;
-		    panel.winbrick.width=40;
-		    panel.winbrick.height=40;
-		    
-		    // Set up the brick.
-		    panel.brick2.setColor(0,0,200);
-		    panel.brick2.x = panel.screen.width/3;    
-		    panel.brick2.y = panel.screen.height/4;
-		    panel.brick2.width = panel.screen.width/8;//Change size of brick
-		    panel.brick2.height = panel.screen.height/2;//Change size of brick
-		    panel.brick2.HP=30;
-
-		    // Set up a timer to do the gameTask regularly.
-		    gameTimer.schedule(panel.gameTask, 0, 30);
-			//END OF STAGE 1************************
-			//**************************************
-		  }
-	    while(!Continue);
-	  if(Stage==2){
-			Continue=false;
-			//SET UP STAGE 1************************
-			//**************************************
-		    java.util.Timer gameTimer = new java.util.Timer();  // Create a Timer object
-		    JFrame preview = new JFrame("Stage2 Preview");
-		    preview.setSize(1000,600);
-		    Image backgroundImage =null;
-		    String Imagepath= "C:\\Users\\Jorge Munoz\\workspace\\BallGame\\src\\Stage2.jpg";
-		    try {
-		        backgroundImage = ImageIO.read(new File(Imagepath));
-		    } catch (IOException e) {
-		        e.printStackTrace();
-		    }
-
-		    // Initializing panel with the our image
-		    ImagePanel previews = new ImagePanel(backgroundImage);
-
-		    preview.getContentPane().add(previews);
-		    preview.setVisible(true);    
-		    BallGame panel = new BallGame();
-		    //preview.setVisible(false);
-		    panel.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		    panel.frame.setSize(panel.screen.width, panel.screen.height);
-
-		    panel.frame.setContentPane(panel); 
-		    panel.frame.setVisible(true);
-		    
+		    edge=panel.screen.height/20;
 		    // Set up the brick.
 		    panel.brick.setColor(0,200,0);
 		    panel.brick.x = 0;
@@ -907,12 +933,12 @@ double[] Bforce= new double[3];
 		    panel.brick.y = panel.screen.height/4;
 		    panel.brick.width = panel.screen.width/2;//Change size of brick
 		    panel.brick.height = panel.screen.height/8;//Change size of brick
-		    panel.brick.HP=30;
-		    
+		    panel.brick.HP=100;
+   
 		    panel.winbrick.x=0;
-		    panel.winbrick.y=panel.screen.height-90;
-		    panel.winbrick.width=40;
-		    panel.winbrick.height=40;
+		    panel.winbrick.y=panel.screen.height-panel.screen.height/20-edge;
+		    panel.winbrick.width=panel.screen.height/20;
+		    panel.winbrick.height=panel.screen.height/20;
 		    
 		    // Set up the brick.
 		    panel.brick2.setColor(0,200,0);
@@ -920,14 +946,71 @@ double[] Bforce= new double[3];
 		    panel.brick2.y = 0;
 		    panel.brick2.width = panel.screen.width/8;//Change size of brick
 		    panel.brick2.height = panel.screen.height/2;//Change size of brick
-		    panel.brick2.HP=30;
+		    panel.brick2.HP=100;
 
+		    //Empty bricks
+		    panel.brick3.HP=0;
+		    
 		    // Set up a timer to do the gameTask regularly.
-		    gameTimer.schedule(panel.gameTask, 0, 30);
-		    while(!Continue);
+		    gameTimer.schedule(panel.gameTask, 0, 20);
 			//END OF STAGE 2************************
 			//**************************************
 		  }
+	  if(Stage==3){
+			Continue=false;
+			//SET UP STAGE 3************************
+			//**************************************
+		    java.util.Timer gameTimer = new java.util.Timer();  // Create a Timer object
+		    URL imgURL = BallGame.class.getResource("/img/Stage3.jpg");
+		    Image img = Toolkit.getDefaultToolkit().getImage(imgURL);
+		    JFrame preview = new JFrame("Stage 3 Preview");
+		    preview.setSize(1000,600);
+		    ImagePanel previews = new ImagePanel(img);
+
+		    preview.getContentPane().add(previews);
+		    preview.setVisible(true);    
+		    BallGame panel = new BallGame();
+		    preview.setVisible(false);
+		    panel.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		    panel.frame.setSize(panel.screen.width, panel.screen.height);
+		    edge=panel.screen.height/20;
+		    panel.frame.setContentPane(panel); 
+		    panel.frame.setVisible(true);
+		    
+		    // Set up the brick.
+		    panel.brick.setColor(200,0,0);
+		    panel.brick.x = panel.screen.width/4;
+		    panel.brick.y = panel.screen.height/4;
+		    panel.brick.width = panel.screen.width/2;//Change size of brick
+		    panel.brick.height = panel.screen.height/8;//Change size of brick
+		    panel.brick.HP=100;
+		    
+		    panel.winbrick.x=panel.screen.width/2;
+		    panel.winbrick.y=panel.screen.height/2;
+		    panel.winbrick.width=panel.screen.height/16;
+		    panel.winbrick.height=panel.screen.height/16;
+		    
+		    // Set up the brick.
+		    panel.brick2.setColor(200,0,0);
+		    panel.brick2.x = panel.screen.width/4;    
+		    panel.brick2.y = 3*panel.screen.height/8;
+		    panel.brick2.width = panel.screen.width/8;//Change size of brick
+		    panel.brick2.height = panel.screen.height/3;//Change size of brick
+		    panel.brick2.HP=100;
+		    
+		    // Set up brick
+		    panel.brick3.setColor(200,0,0);
+		    panel.brick3.x = panel.screen.width/4;
+		    panel.brick3.y = 17*panel.screen.height/24;
+		    panel.brick3.width = panel.screen.width/2;//Change size of brick
+		    panel.brick3.height = panel.screen.height/8;//Change size of brick
+		    panel.brick3.HP=100;
+
+		    // Set up a timer to do the gameTask regularly.
+		    gameTimer.schedule(panel.gameTask, 0, 20);
+			//END OF STAGE 3************************
+			//**************************************
+		  }
 	  }
-  }  
+  }
 }
